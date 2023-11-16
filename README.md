@@ -23,7 +23,7 @@ In Home Assistant:
 1. Enter configuration menu
 2. Select "Integrations"
 3. Click the "+" in the bottom right
-4. Choose "Lightwave 2"
+4. Choose "Lightwave Smart"
 5. Enter username and password
 6. This should automatically find all your devices
 

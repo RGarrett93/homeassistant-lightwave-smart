@@ -10,10 +10,10 @@
                     "password": "Password"
                 },
                 "description": "Enter Lightwave username and password",
-                "title": "Lightwave 2"
+                "title": "Lightwave Smart"
             }
         },
-        "title": "Lightwave 2"
+        "title": "Lightwave Smart"
     },
     "options": {
         "step": {

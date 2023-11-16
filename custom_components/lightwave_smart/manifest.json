@@ -1,6 +1,6 @@
 {
   "domain": "lightwave_smart",
-  "name": "Lightwave Smart Series (generation 2) custom component",
+  "name": "Lightwave Smart custom component",
   "version": "3.5.22",
   "documentation": "https://github.com/LightwaveSmartHome/homeassistant-lightwave-smart",
   "dependencies": [],
