@@ -1,12 +1,12 @@
 {
   "domain": "lightwave_smart",
   "name": "Lightwave Smart custom component",
-  "version": "3.5.22",
-  "documentation": "https://github.com/LightwaveSmartHome/homeassistant-lightwave-smart",
-  "dependencies": [],
   "codeowners": ["@ikb42"],
-  "requirements": ["lightwave_smart==0.8.24"],
   "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/LightwaveSmartHome/homeassistant-lightwave-smart",
   "iot_class": "cloud_push",
-  "loggers": ["custom_components.lightwave_smart", "lightwave_smart"]
+  "loggers": ["custom_components.lightwave_smart", "lightwave_smart"],
+  "requirements": ["lightwave_smart==0.8.24"],
+  "version": "3.5.22"
 }
