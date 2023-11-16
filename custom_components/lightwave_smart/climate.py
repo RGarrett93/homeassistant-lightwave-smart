@@ -11,7 +11,7 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from .const import DOMAIN
 
-DEPENDENCIES = ['lightwave2']
+DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 PRESET_NAMES = {"Auto": None, "20%": 20, "40%": 40, "60%": 60, "80%": 80, "100%": 100}
 
@@ -120,7 +120,7 @@ class LWRF2Climate(ClimateEntity):
 
     @property
     def should_poll(self):
-        """Lightwave2 library will push state, no polling needed"""
+        """lightwave_smart library will push state, no polling needed"""
         return False
 
     @property

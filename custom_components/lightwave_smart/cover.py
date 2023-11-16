@@ -10,7 +10,7 @@ from homeassistant.components.cover import (
 from homeassistant.core import callback
 from .const import DOMAIN
 
-DEPENDENCIES = ['lightwave2']
+DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -53,7 +53,7 @@ class LWRF2Cover(CoverEntity):
 
     @property
     def should_poll(self):
-        """Lightwave2 library will push state, no polling needed"""
+        """lightwave_smart library will push state, no polling needed"""
         return False
 
     @property

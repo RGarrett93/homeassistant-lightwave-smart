@@ -16,5 +16,5 @@ To enable additional logging, add the following to configuration.yaml
 logger:
   default: warning
   logs:
-    lightwave2.lightwave2: debug
-    custom_components.lightwave2: debug
+    lightwave_smart.lightwave_smart: debug
+    custom_components.lightwave_smart: debug

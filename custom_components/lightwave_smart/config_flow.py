@@ -6,7 +6,7 @@ from .const import DOMAIN, CONF_PUBLICAPI, CONF_HOMEKIT
 import voluptuous as vol
 _LOGGER = logging.getLogger(__name__)
 
-class Lightwave2ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class lightwave_smartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=()):
 
@@ -27,9 +27,9 @@ class Lightwave2ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return Lightwave2OptionsFlowHandler(config_entry)
+        return lightwave_smartOptionsFlowHandler(config_entry)
 
-class Lightwave2OptionsFlowHandler(config_entries.OptionsFlow):
+class lightwave_smartOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         self.config_entry = config_entry

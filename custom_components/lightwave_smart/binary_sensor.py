@@ -10,7 +10,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers import entity_registry as er
 from .const import DOMAIN
 
-DEPENDENCIES = ['lightwave2']
+DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS = [
@@ -92,7 +92,7 @@ class LWRF2BinarySensor(BinarySensorEntity):
 
     @property
     def should_poll(self):
-        """Lightwave2 library will push state, no polling needed"""
+        """lightwave_smart library will push state, no polling needed"""
         return False
 
     @property

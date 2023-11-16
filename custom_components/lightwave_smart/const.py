@@ -1,4 +1,4 @@
-DOMAIN = "lightwave2"
+DOMAIN = "lightwave_smart"
 CONF_PUBLICAPI = 'lightwave_publicapi'
 CONF_FORCESEND = 'lightwave_alwayssend'
 CONF_HOMEKIT = 'lightwave_homekit'

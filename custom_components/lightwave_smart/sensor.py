@@ -3,7 +3,8 @@ from .const import LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES, DOMAIN
 from homeassistant.components.sensor import  STATE_CLASS_MEASUREMENT, STATE_CLASS_TOTAL_INCREASING, SensorEntity, SensorEntityDescription
 from homeassistant.const import (POWER_WATT, ENERGY_WATT_HOUR, DEVICE_CLASS_POWER, DEVICE_CLASS_ENERGY, 
     DEVICE_CLASS_SIGNAL_STRENGTH, SIGNAL_STRENGTH_DECIBELS_MILLIWATT, PERCENTAGE, DEVICE_CLASS_BATTERY,
-    DEVICE_CLASS_TIMESTAMP, ELECTRIC_POTENTIAL_VOLT, ELECTRIC_CURRENT_MILLIAMPERE, DEVICE_CLASS_CURRENT, DEVICE_CLASS_VOLTAGE, DEVICE_CLASS_ILLUMINANCE)
+    DEVICE_CLASS_TIMESTAMP, ELECTRIC_POTENTIAL_VOLT, ELECTRIC_CURRENT_MILLIAMPERE, DEVICE_CLASS_CURRENT, DEVICE_CLASS_VOLTAGE, DEVICE_CLASS_ILLUMINANCE,
+    LIGHT_LUX)
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity import EntityCategory
@@ -11,7 +12,9 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from datetime import datetime
 import pytz
 
-DEPENDENCIES = ['lightwave2']
+RECOMMENDED_LUX_LEVEL = 300
+
+DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS = [
@@ -47,7 +50,7 @@ SENSORS = [
         name="Battery Level",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-        SensorEntityDescription(
+    SensorEntityDescription(
         key="voltage",
         native_unit_of_measurement=ELECTRIC_POTENTIAL_VOLT,
         device_class=DEVICE_CLASS_VOLTAGE,
@@ -55,7 +58,7 @@ SENSORS = [
         name="Voltage",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-        SensorEntityDescription(
+    SensorEntityDescription(
         key="current",
         native_unit_of_measurement=ELECTRIC_CURRENT_MILLIAMPERE,
         device_class=DEVICE_CLASS_CURRENT,
@@ -65,6 +68,7 @@ SENSORS = [
     ),
     SensorEntityDescription(
         key="lightLevel",
+        native_unit_of_measurement=LIGHT_LUX,
         device_class=DEVICE_CLASS_ILLUMINANCE,
         state_class=STATE_CLASS_MEASUREMENT,
         name="Illuminance",
@@ -102,18 +106,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     for featureset_id, hubname in link.get_hubs():
             try:
                 sensors.append(LWRF2EventSensor(hubname, featureset_id, link, SensorEntityDescription(
-                key="lastEvent",
-                device_class=DEVICE_CLASS_TIMESTAMP,
-                name="Last Event Received",
-                entity_category=EntityCategory.DIAGNOSTIC,
-            )))
+                    key="lastEvent",
+                    device_class=DEVICE_CLASS_TIMESTAMP,
+                    name="Last Event Received",
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                )))
             except Exception as e: _LOGGER.exception("Could not add LWRF2EventSensor")
 
     hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_ENTITIES].extend(sensors)
     async_add_entities(sensors)
 
 class LWRF2Sensor(SensorEntity):
-    """Representation of a LightWaveRF sensor."""
+    """Representation of a LightwaveRF sensor."""
 
     def __init__(self, name, featureset_id, link, description, hass):
         self._name = f"{name} {description.name}"
@@ -151,13 +155,13 @@ class LWRF2Sensor(SensorEntity):
         """Update the component's state."""
         if kwargs["feature"] == "buttonPress" and self._lwlink.get_featureset_by_featureid(kwargs["feature_id"]).featureset_id == self._featureset_id:
             _LOGGER.debug("Button (light) press event: %s %s", self.entity_id, kwargs["new_value"])
-            self._hass.bus.fire("lightwave2.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
+            self._hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
         )
         self.async_schedule_update_ha_state(True)
 
     @property
     def should_poll(self):
-        """Lightwave2 library will push state, no polling needed"""
+        """lightwave_smart library will push state, no polling needed"""
         return False
 
     @property
@@ -192,7 +196,13 @@ class LWRF2Sensor(SensorEntity):
 
     @property
     def native_value(self):
-        return self._state
+        value = self._state
+        if self.entity_description.key == 'lightLevel' and self.entity_description.device_class == 'illuminance' and self.entity_description.native_unit_of_measurement == 'lx':
+            # Very roughly adjust the given % to Lumens using 300 lux = 100%
+            lux_level = (value / 100) * RECOMMENDED_LUX_LEVEL
+            value = lux_level
+        
+        return value
 
     @property
     def extra_state_attributes(self):
@@ -218,7 +228,7 @@ class LWRF2Sensor(SensorEntity):
         }
 
 class LWRF2EventSensor(SensorEntity):
-    """Representation of a LightWaveRF sensor."""
+    """Representation of a LightwaveRF sensor."""
 
     def __init__(self, name, featureset_id, link, description):
         self._name = f"{name} {description.name}"
@@ -241,7 +251,7 @@ class LWRF2EventSensor(SensorEntity):
 
     @property
     def should_poll(self):
-        """Lightwave2 library will push state, no polling needed"""
+        """lightwave_smart library will push state, no polling needed"""
         return False
 
     @property

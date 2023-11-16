@@ -5,7 +5,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.core import callback
 from .const import DOMAIN
 
-DEPENDENCIES = ['lightwave2']
+DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -59,13 +59,13 @@ class LWRF2Switch(SwitchEntity):
         """Update the component's state."""
         if kwargs["feature"] == "uiButton" and self._lwlink.get_featureset_by_featureid(kwargs["feature_id"]).featureset_id == self._featureset_id:
             _LOGGER.debug("Button (socket) press event: %s %s", self.entity_id, kwargs["new_value"])
-            self._hass.bus.fire("lightwave2.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
+            self._hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
         )
         self.async_schedule_update_ha_state(True)
 
     @property
     def should_poll(self):
-        """Lightwave2 library will push state, no polling needed"""
+        """lightwave_smart library will push state, no polling needed"""
         return False
 
     @property

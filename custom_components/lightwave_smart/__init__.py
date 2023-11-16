@@ -54,7 +54,7 @@ async def async_setup(hass, config):
     return True
 
 async def async_setup_entry(hass, config_entry):
-    from lightwave2 import lightwave2
+    from lightwave_smart import lightwave_smart
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault(config_entry.entry_id, {})
@@ -65,9 +65,9 @@ async def async_setup_entry(hass, config_entry):
     publicapi = config_entry.options.get(CONF_PUBLICAPI, False)
     if publicapi:
         _LOGGER.warning("Using Public API, this is experimental - if you have issues turn this off in the integration options")
-        link = lightwave2.LWLink2Public(email, password)
+        link = lightwave_smart.LWLink2Public(email, password)
     else:
-        link = lightwave2.LWLink2(email, password)
+        link = lightwave_smart.LWLink2(email, password)
 
     if not await link.async_connect(max_tries = 1, force_keep_alive_secs=0):
         return False
@@ -84,7 +84,7 @@ async def async_setup_entry(hass, config_entry):
         hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_WEBHOOKID] = webhook_id
         _LOGGER.debug("Generated webhook: %s ", webhook_id)
         hass.components.webhook.async_register(
-            'lightwave2', 'Lightwave webhook', webhook_id, handle_webhook)
+            'lightwave_smart', 'Lightwave webhook', webhook_id, handle_webhook)
         url = hass.components.webhook.async_generate_url(webhook_id)
         _LOGGER.debug("Webhook URL: %s ", url)
         await link.async_register_webhook_all(url, LIGHTWAVE_WEBHOOK, overwrite = True)

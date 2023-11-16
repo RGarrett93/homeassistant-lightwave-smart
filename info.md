@@ -15,9 +15,9 @@ Various sensor entities (including power consumption) and controls for the butto
 
 All other attributes reported by the Lightwave devices are exposed with the names `lwrf_*`. These are all read-only.
 
-For gen2 devices, the brightness can be set without turning the light on using `lightwave2.set_brightness`.
+For gen2 devices, the brightness can be set without turning the light on using `lightwave_smart.set_brightness`.
 
-Firmware 5+ devices generate `lightwave2.click` events when the buttons are pressed. The "code" returned is the type of click:
+Firmware 5+ devices generate `lightwave_smart.click` events when the buttons are pressed. The "code" returned is the type of click:
 
 Code|Hex|Meaning
 ----|----|----
@@ -40,6 +40,6 @@ For sockets the codes are the "up button" versions.
 
 There are further service calls:
 
-`lightwave2.reconnect`: Force a reconnect to the Lightwave servers (only for non-public API, has no effect on public API)
-`lightwave2.whdelete`: Delete a webhook registration (use this if you get "Received message for unregistered webhook" log messages)
-`lightwave2.update_states`: Force a read of all states of devices
+`lightwave_smart.reconnect`: Force a reconnect to the Lightwave servers (only for non-public API, has no effect on public API)
+`lightwave_smart.whdelete`: Delete a webhook registration (use this if you get "Received message for unregistered webhook" log messages)
+`lightwave_smart.update_states`: Force a read of all states of devices
