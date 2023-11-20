@@ -7,7 +7,7 @@ from .const import DOMAIN, CONF_PUBLICAPI, CONF_HOMEKIT
 import voluptuous as vol
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = vol.Schema(
+USER_CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
@@ -26,7 +26,7 @@ class lightwave_smartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id='user',
-            data_schema=CONFIG_SCHEMA
+            data_schema=USER_CONFIG_SCHEMA
         )
 
     @staticmethod

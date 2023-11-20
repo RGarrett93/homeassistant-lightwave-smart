@@ -24,8 +24,19 @@
             }
         }
     },
-    "reconnect": {
+
+    "services": {
         "set_brightness": {
+            "description": "Set the brightness",
+            "fields": {
+                "entity_id": {
+                    "description": "Name(s) of entities that will have brightness set.",
+                    "name": "Entity"
+                }
+            },
+            "name": "Set the brightness"
+        },
+        "reconnect": {
             "description": "Force a reconnect",
             "fields": {
                 "entity_id": {
@@ -34,10 +45,8 @@
                 }
             },
             "name": "Force a reconnect"
-        }
-    },
-    "whdelete": {
-        "set_brightness": {
+        },
+        "whdelete": {
             "description": "Delete a webhook",
             "fields": {
                 "entity_id": {
@@ -46,10 +55,8 @@
                 }
             },
             "name": "Delete a webhook"
-        }
-    },
-    "update_states": {
-        "set_brightness": {
+        },
+        "update_states": {
             "description": "Force read all device states",
             "fields": {
                 "entity_id": {
@@ -60,5 +67,4 @@
             "name": "Force read all device states"
         }
     }
-
 }

@@ -1,12 +1,24 @@
 import logging
+import voluptuous as vol
 
 from .const import DOMAIN, CONF_PUBLICAPI, LIGHTWAVE_LINK2,  LIGHTWAVE_ENTITIES, \
     LIGHTWAVE_WEBHOOK, LIGHTWAVE_WEBHOOKID, LIGHTWAVE_LINKID, SERVICE_RECONNECT, SERVICE_WHDELETE, SERVICE_UPDATE
 from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema({
+            vol.Required(CONF_USERNAME): cv.string,
+            vol.Required(CONF_PASSWORD): cv.string,
+        })
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 async def handle_webhook(hass, webhook_id, request):
     """Handle webhook callback."""
