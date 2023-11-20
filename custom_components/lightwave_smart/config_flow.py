@@ -1,10 +1,18 @@
 import logging
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD)
 from .const import DOMAIN, CONF_PUBLICAPI, CONF_HOMEKIT
 import voluptuous as vol
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+    }
+)
 
 class lightwave_smartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
@@ -18,10 +26,7 @@ class lightwave_smartConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id='user',
-            data_schema=vol.Schema({
-                vol.Required(CONF_USERNAME): str,
-                vol.Required(CONF_PASSWORD): str
-            })
+            data_schema=CONFIG_SCHEMA
         )
 
     @staticmethod

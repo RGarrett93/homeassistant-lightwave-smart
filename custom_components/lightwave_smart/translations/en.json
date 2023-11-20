@@ -12,8 +12,7 @@
                 "description": "Enter Lightwave username and password",
                 "title": "Lightwave Smart"
             }
-        },
-        "title": "Lightwave Smart"
+        }
     },
     "options": {
         "step": {
@@ -25,16 +24,40 @@
             }
         }
     },
-    "services": {
+    "reconnect": {
         "set_brightness": {
-            "description": "Set the brightness",
+            "description": "Force a reconnect",
             "fields": {
                 "entity_id": {
-                    "description": "Name(s) of entities that will have brightness set.",
+                    "description": "Force a reconnect to the Lightwave servers (only for non-public API, has no effect on public API)",
                     "name": "Entity"
                 }
             },
-            "name": "Set the brightness"
+            "name": "Force a reconnect"
+        }
+    },
+    "whdelete": {
+        "set_brightness": {
+            "description": "Delete a webhook",
+            "fields": {
+                "entity_id": {
+                    "description": "Delete a webhook registration (use this if you get 'Received message for unregistered webhook' log messages)",
+                    "name": "Entity"
+                }
+            },
+            "name": "Delete a webhook"
+        }
+    },
+    "update_states": {
+        "set_brightness": {
+            "description": "Force read all device states",
+            "fields": {
+                "entity_id": {
+                    "description": "Force a read of all states of devices",
+                    "name": "Entity"
+                }
+            },
+            "name": "Force read all device states"
         }
     }
 
