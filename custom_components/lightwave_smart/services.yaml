@@ -23,6 +23,7 @@ whdelete:
     webhookid:
       name: Webhook ID
       required: true
+      description: The ID of the webhook to delete
       selector:
         text:
 
