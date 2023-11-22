@@ -11,6 +11,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.exceptions import ConfigEntryNotReady
 from datetime import datetime
 import pytz
+from .utils import make_device_info
 
 RECOMMENDED_LUX_LEVEL = 300
 
@@ -119,16 +120,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class LWRF2Sensor(SensorEntity):
     """Representation of a LightwaveRF sensor."""
 
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_assumed_state = False
+
     def __init__(self, name, featureset_id, link, description, hass):
-        self._name = f"{name} {description.name}"
-        self._hass = hass
-        self._device = name
-        _LOGGER.debug("Adding sensor: %s ", self._name)
+        _LOGGER.debug("Adding sensor: %s - %s - %s ", name, description.key, featureset_id)
         self._featureset_id = featureset_id
         self._lwlink = link
-        self.entity_description = description
-        self._state = self._lwlink.featuresets[self._featureset_id].features[self.entity_description.key].state
 
+        for hub_featureset_id, hubname in self._lwlink.get_hubs():
+            self._linkid = hub_featureset_id
+        
+        self.entity_description = description
+
+        self._state = self._lwlink.featuresets[self._featureset_id].features[self.entity_description.key].state
         if self._state is None:
             raise ConfigEntryNotReady(f"Sensor is not responding: {self._featureset_id}")
         else:
@@ -141,10 +147,12 @@ class LWRF2Sensor(SensorEntity):
                 min = self._state // 60
                 second = self._state - min * 60
                 self._state = dt_util.parse_datetime(f'{year}-{month:02}-{day:02}T{hour:02}:{min:02}:{second:02}Z')
-        for featureset_id, hubname in link.get_hubs():
-            self._linkid = featureset_id
+
         if self._lwlink.featuresets[self._featureset_id].is_energy() and not self.entity_description.key == 'rssi':
             self.entity_description.entity_category = None
+
+        self._attr_unique_id = f"{self._featureset_id}_{self.entity_description.key}"
+        self._attr_device_info = make_device_info(self, name)
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
@@ -155,18 +163,9 @@ class LWRF2Sensor(SensorEntity):
         """Update the component's state."""
         if kwargs["feature"] == "buttonPress" and self._lwlink.get_featureset_by_featureid(kwargs["feature_id"]).featureset_id == self._featureset_id:
             _LOGGER.debug("Button (light) press event: %s %s", self.entity_id, kwargs["new_value"])
-            self._hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
+            self.hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
         )
         self.async_schedule_update_ha_state(True)
-
-    @property
-    def should_poll(self):
-        """lightwave_smart library will push state, no polling needed"""
-        return False
-
-    @property
-    def assumed_state(self):
-        return False
 
     async def async_update(self):
         """Update state"""
@@ -185,19 +184,9 @@ class LWRF2Sensor(SensorEntity):
                 self._state = dt_util.parse_datetime(f'{year}-{month:02}-{day:02}T{hour:02}:{min:02}:{second:02}Z')
 
     @property
-    def name(self):
-        """Lightwave name."""
-        return self._name
-
-    @property
-    def unique_id(self):
-        """Unique identifier. Provided by hub."""
-        return f"{self._featureset_id}_{self.entity_description.key}"
-
-    @property
     def native_value(self):
         value = self._state
-        if self.entity_description.key == 'lightLevel' and self.entity_description.device_class == 'illuminance' and self.entity_description.native_unit_of_measurement == 'lx':
+        if self.entity_description.key == 'lightLevel':
             # Very roughly adjust the given % to Lumens using 300 lux = 100%
             lux_level = (value / 100) * RECOMMENDED_LUX_LEVEL
             value = lux_level
@@ -217,28 +206,26 @@ class LWRF2Sensor(SensorEntity):
 
         return attribs
 
-    @property
-    def device_info(self):
-        return {
-            'identifiers': { (DOMAIN, self._featureset_id) },
-            'name': self._device,
-            'manufacturer': "Lightwave RF",
-            'model': self._lwlink.featuresets[self._featureset_id].product_code,
-            'via_device': (DOMAIN, self._linkid)
-        }
 
 class LWRF2EventSensor(SensorEntity):
     """Representation of a LightwaveRF sensor."""
 
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_assumed_state = False
+
     def __init__(self, name, featureset_id, link, description):
-        self._name = f"{name} {description.name}"
-        self._device = name
-        _LOGGER.debug("Adding event sensor: %s ", self._name)
+        _LOGGER.debug("Adding event sensor: %s - %s - %s ", name, description.key, featureset_id)
         self._featureset_id = featureset_id
         self._lwlink = link
-        self.entity_description = description
-        self._state = datetime.now(pytz.utc)
         self._linkid = featureset_id
+        
+        self.entity_description = description
+
+        self._state = datetime.now(pytz.utc)
+
+        self._attr_unique_id = f"{self._featureset_id}_{self.entity_description.key}"
+        self._attr_device_info = make_device_info(self, name)
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
@@ -249,39 +236,10 @@ class LWRF2EventSensor(SensorEntity):
         """Update the component's state."""
         self.async_schedule_update_ha_state(True)
 
-    @property
-    def should_poll(self):
-        """lightwave_smart library will push state, no polling needed"""
-        return False
-
-    @property
-    def assumed_state(self):
-        return False
-
     async def async_update(self):
         """Update state"""
         self._state = datetime.now(pytz.utc)
 
     @property
-    def name(self):
-        """Lightwave name."""
-        return self._name
-
-    @property
-    def unique_id(self):
-        """Unique identifier. Provided by hub."""
-        return f"{self._featureset_id}_{self.entity_description.key}"
-
-    @property
     def native_value(self):
         return self._state
-
-    @property
-    def device_info(self):
-        return {
-            'identifiers': { (DOMAIN, self._featureset_id) },
-            'name': self._device,
-            'manufacturer': "Lightwave RF",
-            'model': self._lwlink.featuresets[self._featureset_id].product_code,
-            'via_device': (DOMAIN, self._linkid)
-        }
