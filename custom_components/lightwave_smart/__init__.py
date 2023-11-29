@@ -1,9 +1,11 @@
 import logging
 import voluptuous as vol
 
-from .const import DOMAIN, CONF_PUBLICAPI, LIGHTWAVE_LINK2,  LIGHTWAVE_ENTITIES, \
+from .const import DOMAIN, CONF_PUBLICAPI, LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES, \
     LIGHTWAVE_WEBHOOK, LIGHTWAVE_WEBHOOKID, LIGHTWAVE_LINKID, SERVICE_RECONNECT, SERVICE_WHDELETE, SERVICE_UPDATE
+from homeassistant.config_entries import ConfigEntry    
 from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD)
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import config_validation as cv
@@ -65,7 +67,7 @@ async def async_setup(hass, config):
     
     return True
 
-async def async_setup_entry(hass, config_entry):
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     from lightwave_smart import lightwave_smart
 
     hass.data.setdefault(DOMAIN, {})
@@ -81,7 +83,7 @@ async def async_setup_entry(hass, config_entry):
     else:
         link = lightwave_smart.LWLink2(email, password)
 
-    connected = await link.async_connect(max_tries = 1, force_keep_alive_secs=force_reconnect_secs)
+    connected = await link.async_connect(max_tries = 1, force_keep_alive_secs=0)
     if not connected:
         return False
     await link.async_get_hierarchy()
@@ -90,8 +92,8 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_ENTITIES] = []
     if not publicapi:
         url = None
-        _LOGGER.debug("Register central callback")
-        await link.async_register_callback(async_central_callback)
+        # _LOGGER.debug("Register central callback")
+        # await link.async_register_callback(async_central_callback)
     else:
         webhook_id = hass.components.webhook.async_generate_id()
         hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_WEBHOOKID] = webhook_id
@@ -145,6 +147,7 @@ async def async_setup_entry(hass, config_entry):
     hass.async_create_task(forward_setup(config_entry, "binary_sensor"))
     hass.async_create_task(forward_setup(config_entry, "sensor"))
     hass.async_create_task(forward_setup(config_entry, "lock"))
+    hass.async_create_task(forward_setup(config_entry, "event"))
 
     return True
 

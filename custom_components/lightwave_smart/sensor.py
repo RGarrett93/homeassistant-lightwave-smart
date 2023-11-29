@@ -164,7 +164,7 @@ class LWRF2Sensor(SensorEntity):
     @callback
     def async_update_callback(self, **kwargs):
         """Update the component's state."""
-        if kwargs["feature"] == "buttonPress" and self._lwlink.get_featureset_by_featureid(kwargs["feature_id"]).featureset_id == self._featureset_id:
+        if kwargs["feature"] == "buttonPress":
             _LOGGER.debug("Button (light) press event: %s %s", self.entity_id, kwargs["new_value"])
             self.hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
         )

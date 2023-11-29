@@ -95,7 +95,7 @@ class LWRF2Switch(SwitchEntity):
     @callback
     def async_update_callback(self, **kwargs):
         """Update the component's state."""
-        if kwargs["feature"] == "uiButton" and self._lwlink.get_featureset_by_featureid(kwargs["feature_id"]).featureset_id == self._featureset_id:
+        if kwargs["feature"] == "uiButton":
             _LOGGER.debug("Button (socket) press event: %s %s", self.entity_id, kwargs["new_value"])
             self.hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
         )
