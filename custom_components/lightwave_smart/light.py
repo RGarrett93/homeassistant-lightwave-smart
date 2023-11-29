@@ -1,18 +1,45 @@
 import logging
-from .const import LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES, SERVICE_SETBRIGHTNESS, CONF_HOMEKIT
-from homeassistant.components.light import LightEntity
+from .const import LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES, SERVICE_SETBRIGHTNESS, CONF_HOMEKIT, DOMAIN
 from homeassistant.components.light import (
-    ATTR_BRIGHTNESS, COLOR_MODE_BRIGHTNESS, COLOR_MODE_RGB)
+    LightEntity,
+    LightEntityDescription,
+    ATTR_BRIGHTNESS, COLOR_MODE_BRIGHTNESS, COLOR_MODE_RGB
+)
 from homeassistant.core import callback
 from homeassistant.helpers import entity_platform, entity_registry as er
 from homeassistant.helpers.entity import EntityCategory
-from .const import DOMAIN
+from .utils import (
+    make_device_info,
+    get_extra_state_attributes
+)
+
 
 DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 
+LIGHT = LightEntityDescription(
+    key="smartLightSwitch",
+    name="Switch",
+    has_entity_name=True
+)
+
+OFF_LED = LightEntityDescription(
+    key="offLed",
+    name="Off LED Indicator",
+    icon="mdi:led-outline",
+    has_entity_name=True,
+    entity_category=EntityCategory.CONFIG
+)
+
+LED = LightEntityDescription(
+    key="ledIndicator",
+    name="LED Indicator",
+    icon="mdi:led-outline",
+    has_entity_name=True,
+)
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Find and return LightWave lights."""
+    """Find and return Lightwave lights."""
 
     lights = []
     link = hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_LINK2]
@@ -20,27 +47,38 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     homekit = config_entry.options.get(CONF_HOMEKIT, False)
     for featureset_id, name in link.get_lights():
         try:
-            lights.append(LWRF2Light(name, featureset_id, link, hass, homekit))
+            lights.append(LWRF2Light(name, featureset_id, link, homekit))
         except Exception as e: _LOGGER.exception("Could not add LWRF2Light")
 
 
     for featureset_id, name in link.get_lights():
-        if link.featuresets[featureset_id].has_led():
+        feature_set = link.featuresets[featureset_id]
+        if feature_set.has_led():
+            channel_input_mapped = None
+            if feature_set.has_uiIndicator():
+                ui_io_map_feature = feature_set.get_feature_by_type("uiIOMap")
+                channel_input_mapped = ui_io_map_feature.channel_input_mapped
+                
             try:
-                lights.append(LWRF2LED(name, featureset_id, link, hass))
+                if channel_input_mapped is not None and channel_input_mapped == False:
+                    lights.append(LWRF2LED(name, featureset_id, link, LED, 'uiIndicator'))
+                else:
+                    lights.append(LWRF2LED(name, featureset_id, link, OFF_LED))
+                    
             except Exception as e: _LOGGER.exception("Could not add LWRF2LED")
 
-    for featureset_id, name in link.get_switches():
+    for featureset_id, name in link.get_sockets():
         if link.featuresets[featureset_id].has_led():
             try:
-                lights.append(LWRF2LED(name, featureset_id, link, hass))
+                lights.append(LWRF2LED(name, featureset_id, link, OFF_LED))
             except Exception as e: _LOGGER.exception("Could not add LWRF2LED")
 
     for featureset_id, name in link.get_hubs():
         if link.featuresets[featureset_id].has_led():
             try:
-                lights.append(LWRF2LED(name, featureset_id, link, hass))
+                lights.append(LWRF2LED(name, featureset_id, link, OFF_LED))
             except Exception as e: _LOGGER.exception("Could not add LWRF2LED")
+            
 
     async def service_handle_brightness(light, call):
         _LOGGER.debug("Received service call set brightness %s", light._name)
@@ -54,31 +92,44 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_ENTITIES].extend(lights)
     async_add_entities(lights)
 
-class LWRF2Light(LightEntity):
-    """Representation of a LightWaveRF light."""
 
-    def __init__(self, name, featureset_id, link, hass, homekit):
-        self._name = name
-        self._hass = hass
-        _LOGGER.debug("Adding light: %s  -  %s", self._name, featureset_id)
+class LWRF2Light(LightEntity):
+    """Representation of a LightwaveRF light."""
+
+    _attr_should_poll = False
+
+    def __init__(self, name, featureset_id, link, homekit):
+        _LOGGER.debug("Adding light: %s - %s ", name, featureset_id)
         self._featureset_id = featureset_id
         self._lwlink = link
+
+        for hub_featureset_id, hubname in self._lwlink.get_hubs():
+            self._linkid = hub_featureset_id
+
+        self.entity_description = LIGHT
+
         self._homekit = homekit
+
+        self._gen2 = self._lwlink.featuresets[self._featureset_id].is_gen2()
+        self._attr_assumed_state = not self._gen2
+
+        self._attr_unique_id = f"{self._featureset_id}_{self.entity_description.key}"
+        self._attr_device_info = make_device_info(self, name)
+
+
         self._state = \
             self._lwlink.featuresets[self._featureset_id].features["switch"].state
+        
         self._brightness = int(round(
             self._lwlink.featuresets[self._featureset_id].features["dimLevel"].state / 100 * 255))
-        self._gen2 = self._lwlink.featuresets[self._featureset_id].is_gen2()
+        
         self._has_led = self._lwlink.featuresets[self._featureset_id].has_led()
-        for featureset_id, hubname in link.get_hubs():
-            self._linkid = featureset_id
-
-
+        
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
-        await self._lwlink.async_register_callback(self.async_update_callback)
-        registry = er.async_get(self._hass)
+        await self._lwlink.async_register_feature_callback(self._featureset_id, self.async_update_callback)
+        registry = er.async_get(self.hass)
         entity_entry = registry.async_get(self.entity_id)
         if self._homekit and self._gen2:
             if entity_entry is not None and not entity_entry.hidden:
@@ -96,7 +147,7 @@ class LWRF2Light(LightEntity):
         """Update the component's state."""
         if kwargs["feature"] == "uiButtonPair" and self._lwlink.get_featureset_by_featureid(kwargs["feature_id"]).featureset_id == self._featureset_id:
             _LOGGER.debug("Button (light) press event: %s %s", self.entity_id, kwargs["new_value"])
-            self._hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
+            self.hass.bus.fire("lightwave_smart.click",{"entity_id": self.entity_id, "code": kwargs["new_value"]},
         )
         self.async_schedule_update_ha_state(True)
 
@@ -110,16 +161,6 @@ class LWRF2Light(LightEntity):
         """Flag supported features."""
         return COLOR_MODE_BRIGHTNESS
 
-    @property
-    def should_poll(self):
-        """lightwave_smart library will push state, no polling needed"""
-        return False
-
-    @property
-    def assumed_state(self):
-        """Gen 2 devices will report state changes, gen 1 doesn't"""
-        return not self._gen2
-
     async def async_update(self):
         """Update state"""
         self._state = \
@@ -128,19 +169,9 @@ class LWRF2Light(LightEntity):
             self._lwlink.featuresets[self._featureset_id].features["dimLevel"].state / 100 * 255))
 
     @property
-    def name(self):
-        """Lightwave switch name."""
-        return self._name
-
-    @property
     def brightness(self):
         """Return the brightness of the group lights."""
         return self._brightness
-
-    @property
-    def unique_id(self):
-        """Unique identifier. Provided by hub."""
-        return self._featureset_id
 
     @property
     def is_on(self):
@@ -148,7 +179,7 @@ class LWRF2Light(LightEntity):
         return self._state
 
     async def async_turn_on(self, **kwargs):
-        """Turn the LightWave light on."""
+        """Turn the Lightwave light on."""
         _LOGGER.debug("HA light.turn_on received, kwargs: %s", kwargs)
 
         if ATTR_BRIGHTNESS in kwargs:
@@ -163,7 +194,7 @@ class LWRF2Light(LightEntity):
         self.async_schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs):
-        """Turn the LightWave light off."""
+        """Turn the Lightwave light off."""
         _LOGGER.debug("HA light.turn_off received, kwargs: %s", kwargs)
 
         self._state = False
@@ -176,38 +207,36 @@ class LWRF2Light(LightEntity):
     @property
     def extra_state_attributes(self):
         """Return the optional state attributes."""
+        return get_extra_state_attributes(self)
 
-        attribs = {}
-
-        for featurename, feature in self._lwlink.featuresets[self._featureset_id].features.items():
-            attribs['lwrf_' + featurename] = feature.state
-
-        attribs['lrwf_product_code'] = self._lwlink.featuresets[self._featureset_id].product_code
-
-        return attribs
-
-    @property
-    def device_info(self):
-        return {
-            'identifiers': { (DOMAIN, self._featureset_id) },
-            'name': self.name,
-            'manufacturer': "Lightwave RF",
-            'model': self._lwlink.featuresets[self._featureset_id].product_code,
-            'via_device': (DOMAIN, self._linkid)
-        }
 
 class LWRF2LED(LightEntity):
-    """Representation of a LightWaveRF LED."""
+    """Representation of a LightwaveRF LED."""
 
-    def __init__(self, name, featureset_id, link, hass):
-        self._name = f"{name} LED"
-        self._device = name
-        self._hass = hass
-        _LOGGER.debug("Adding LED: %s ", self._name)
+    # _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(self, name, featureset_id, link, description, feature_type='rgbColor'):
+        _LOGGER.debug("Adding LED (%s): %s - %s ", description.key, name, featureset_id)
         self._featureset_id = featureset_id
         self._lwlink = link
+
+        for hub_featureset_id, hubname in self._lwlink.get_hubs():
+            self._linkid = hub_featureset_id
+
+        self.entity_description = description
+
+        self._gen2 = self._lwlink.featuresets[self._featureset_id].is_gen2()
+        self._attr_assumed_state = not self._gen2
+
+        self._attr_unique_id = f"{self._featureset_id}_{self.entity_description.key}"
+        self._attr_device_info = make_device_info(self, name)
+        
+        self.feature_type = feature_type
+
+        # feature_type uiIndicator is not readable from Link (though server may have cache), events are generated when its changed
         color = \
-            self._lwlink.featuresets[self._featureset_id].features["rgbColor"].state
+            self._lwlink.featuresets[self._featureset_id].features[self.feature_type].state
         if color == 0 or not color:
             self._state = False
             self._r = 255
@@ -222,19 +251,19 @@ class LWRF2LED(LightEntity):
         self._r = int(self._r * 255 / self._brightness)
         self._g = int(self._g * 255 / self._brightness)
         self._b = int(self._b * 255 / self._brightness)
-        self._gen2 = self._lwlink.featuresets[self._featureset_id].is_gen2()
-        for featureset_id, hubname in link.get_hubs():
-            self._linkid = featureset_id
+
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
-        await self._lwlink.async_register_callback(self.async_update_callback)
+        _LOGGER.debug("async_added_to_hass - for %s ", self._featureset_id)
+        await self._lwlink.async_register_feature_callback(self._featureset_id, self.async_update_callback)
 
     #TODO add async_will_remove_from_hass() to clean up
 
     @callback
     def async_update_callback(self, **kwargs):
         """Update the component's state."""
+        _LOGGER.debug("async_update_callback - for %s - %s ", self._featureset_id, kwargs)
         self.async_schedule_update_ha_state(True)
 
     @property
@@ -247,24 +276,11 @@ class LWRF2LED(LightEntity):
         """Flag supported features."""
         return COLOR_MODE_RGB
 
-    @property
-    def should_poll(self):
-        """lightwave_smart library will push state, no polling needed"""
-        return False
-
-    @property
-    def assumed_state(self):
-        """Gen 2 devices will report state changes, gen 1 doesn't"""
-        return not self._gen2
-
-    @property
-    def entity_category(self):
-        return EntityCategory.CONFIG
-
     async def async_update(self):
         """Update state"""
         color = \
-            self._lwlink.featuresets[self._featureset_id].features["rgbColor"].state
+            self._lwlink.featuresets[self._featureset_id].features[self.feature_type].state
+        
         if color == 0 or not color:
             self._state = False
         else:
@@ -278,11 +294,6 @@ class LWRF2LED(LightEntity):
             self._b = int(self._b * 255 / self._brightness)
 
     @property
-    def name(self):
-        """Lightwave switch name."""
-        return self._name
-
-    @property
     def brightness(self):
         """Return the brightness of the group lights."""
         return self._brightness
@@ -292,19 +303,13 @@ class LWRF2LED(LightEntity):
         return (self._r, self._g, self._b)
 
     @property
-    def unique_id(self):
-        """Unique identifier. Provided by hub."""
-        return f"{self._featureset_id}_LED"
-
-    @property
     def is_on(self):
         """Lightwave switch is on state."""
         return self._state
 
     async def async_turn_on(self, **kwargs):
-        """Turn the LightWave light on."""
-        _LOGGER.debug("HA led.turn_on received, kwargs: %s", kwargs)
-
+        """Turn the Lightwave LED on / set rgb_color / set brightness."""
+        
         self._state = True
         if 'rgb_color' in kwargs:
             self._r = kwargs['rgb_color'][0]
@@ -319,35 +324,19 @@ class LWRF2LED(LightEntity):
         b = int(self._b * self._brightness /255)
         rgb = r * 65536 + g * 256 + b
 
-        await self._lwlink.async_set_led_rgb_by_featureset_id(self._featureset_id, rgb)
+        await self._lwlink.async_set_led_rgb_by_featureset_id(self._featureset_id, rgb, self.feature_type)
 
         self.async_schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs):
-        """Turn the LightWave light off."""
-        _LOGGER.debug("HA light.turn_off received, kwargs: %s", kwargs)
+        """Turn the Lightwave LED off."""
+        _LOGGER.debug("HA led.turn_off received, kwargs: %s", kwargs)
         self._state = False
-        await self._lwlink.async_set_led_rgb_by_featureset_id(self._featureset_id, 0)
+        await self._lwlink.async_set_led_rgb_by_featureset_id(self._featureset_id, 0, self.feature_type)
 
         self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
         """Return the optional state attributes."""
-
-        attribs = {}
-
-        for featurename, feature in self._lwlink.featuresets[self._featureset_id].features.items():
-            attribs['lwrf_' + featurename] = feature.state
-
-        return attribs
-
-    @property
-    def device_info(self):
-        return {
-            'identifiers': { (DOMAIN, self._featureset_id) },
-            'name': self._device,
-            'manufacturer': "Lightwave RF",
-            'model': self._lwlink.featuresets[self._featureset_id].product_code,
-            'via_device': (DOMAIN, self._linkid)
-        }
+        return get_extra_state_attributes(self)

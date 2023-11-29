@@ -81,7 +81,8 @@ async def async_setup_entry(hass, config_entry):
     else:
         link = lightwave_smart.LWLink2(email, password)
 
-    if not await link.async_connect(max_tries = 1, force_keep_alive_secs=0):
+    connected = await link.async_connect(max_tries = 1, force_keep_alive_secs=force_reconnect_secs)
+    if not connected:
         return False
     await link.async_get_hierarchy()
 

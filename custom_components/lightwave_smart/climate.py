@@ -1,22 +1,33 @@
 import logging
-from .const import LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES
-try:
-    from homeassistant.components.climate import ClimateEntity
-except ImportError:
-    from homeassistant.components.climate import ClimateDevice as ClimateEntity
+from .const import LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES, DOMAIN
+from homeassistant.components.climate import (
+    ClimateEntity, 
+    ClimateEntityDescription, 
+    ClimateEntityFeature
+)
 from homeassistant.components.climate.const import (
     HVAC_MODE_OFF, HVAC_MODE_HEAT, SUPPORT_TARGET_HUMIDITY, SUPPORT_TARGET_TEMPERATURE, SUPPORT_PRESET_MODE, CURRENT_HVAC_HEAT, CURRENT_HVAC_IDLE, CURRENT_HVAC_OFF)
 from homeassistant.const import (
     ATTR_TEMPERATURE, TEMP_CELSIUS, TEMP_FAHRENHEIT, STATE_OFF)
 from homeassistant.core import callback
-from .const import DOMAIN
+from .utils import (
+    make_device_info,
+    get_extra_state_attributes
+)
 
 DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 PRESET_NAMES = {"Auto": None, "20%": 20, "40%": 40, "60%": 60, "80%": 80, "100%": 100}
 
+
+CLIMATE = ClimateEntityDescription(
+    key="thermostat",
+    name="Thermostat",
+)   
+
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Find and return LightWave thermostats."""
+    """Find and return Lightwave thermostats."""
 
     climates = []
     link = hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_LINK2]
@@ -32,13 +43,28 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
 
 class LWRF2Climate(ClimateEntity):
-    """Representation of a LightWaveRF thermostat."""
+    """Representation of a LightwaveRF thermostat."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
 
     def __init__(self, name, featureset_id, link):
-        self._name = name
-        _LOGGER.debug("Adding climate: %s ", self._name)
+        _LOGGER.debug("Adding climate %s - %s ", name, featureset_id)
         self._featureset_id = featureset_id
         self._lwlink = link
+
+        for hub_featureset_id, hubname in self._lwlink.get_hubs():
+            self._linkid = hub_featureset_id
+
+        self.entity_description = CLIMATE
+
+        self._gen2 = self._lwlink.featuresets[self._featureset_id].is_gen2()
+        self._attr_assumed_state = not self._gen2
+
+        self._attr_unique_id = f"{self._featureset_id}_{self.entity_description.key}"
+        self._attr_device_info = make_device_info(self, name)
+
+
         self._trv = self._lwlink.featuresets[self._featureset_id].is_trv()
         self._has_humidity = 'targetHumidity' in self._lwlink.featuresets[self._featureset_id].features.keys()
         if self._has_humidity:
@@ -47,24 +73,23 @@ class LWRF2Climate(ClimateEntity):
             self._support_flags = SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
         else:
             self._support_flags = SUPPORT_TARGET_TEMPERATURE
-        self._gen2 = self._lwlink.featuresets[self._featureset_id].is_gen2()
-
+        
         if 'heatState' in self._lwlink.featuresets[self._featureset_id].features.keys():
             self._thermostat = False
         else:
             self._thermostat = True
             
+        self._valve_level = 100
         if 'valveLevel' in self._lwlink.featuresets[self._featureset_id].features.keys():
             self._valve_level = \
                 self._lwlink.featuresets[self._featureset_id].features["valveLevel"].state
         elif self._thermostat:
-            if self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state is None:
-                self._valve_level = 0
-            else:    
-                self._valve_level = \
-                    self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state * 100
-        else:
-            self._valve_level = 100
+            if "callForHeat" in self._lwlink.featuresets[self._featureset_id].features:
+                if self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state is None:
+                    self._valve_level = 0
+                else:    
+                    self._valve_level = \
+                        self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state * 100
 
         if self._thermostat:
             self._onoff = 1
@@ -106,12 +131,11 @@ class LWRF2Climate(ClimateEntity):
             self._preset_mode = "20%"
         else:
             self._preset_mode = "Auto"
-        for featureset_id, hubname in link.get_hubs():
-            self._linkid = featureset_id
+
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
-        await self._lwlink.async_register_callback(self.async_update_callback)
+        await self._lwlink.async_register_feature_callback(self._featureset_id, self.async_update_callback)
 
     @callback
     def async_update_callback(self, **kwargs):
@@ -119,24 +143,9 @@ class LWRF2Climate(ClimateEntity):
         self.async_schedule_update_ha_state(True)
 
     @property
-    def should_poll(self):
-        """lightwave_smart library will push state, no polling needed"""
-        return False
-
-    @property
     def supported_features(self):
         """Return the list of supported features."""
         return self._support_flags
-
-    @property
-    def unique_id(self):
-        """Unique identifier. Provided by hub."""
-        return self._featureset_id
-
-    @property
-    def name(self):
-        """Return the name, if any."""
-        return self._name
 
     @property
     def temperature_unit(self):
@@ -217,14 +226,14 @@ class LWRF2Climate(ClimateEntity):
 
     async def async_update(self):
         """Update state"""
+        self._valve_level = 100
         if 'valveLevel' in self._lwlink.featuresets[self._featureset_id].features.keys():
             self._valve_level = \
                 self._lwlink.featuresets[self._featureset_id].features["valveLevel"].state
         elif self._thermostat:
-            self._valve_level = \
-                self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state * 100
-        else:
-            self._valve_level = 100
+            if "callForHeat" in self._lwlink.featuresets[self._featureset_id].features:
+                self._valve_level = \
+                    self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state * 100
 
         if self._thermostat:
             self._onoff = 1
@@ -292,25 +301,4 @@ class LWRF2Climate(ClimateEntity):
     @property
     def extra_state_attributes(self):
         """Return the optional state attributes."""
-
-        attribs = {}
-
-        for featurename, feature in self._lwlink.featuresets[self._featureset_id].features.items():
-            attribs['lwrf_' + featurename] = feature.state
-
-        attribs['lrwf_product_code'] = self._lwlink.featuresets[self._featureset_id].product_code
-
-        return attribs
-
-    @property
-    def device_info(self):
-        return {
-            'identifiers': {
-                # Serial numbers are unique identifiers within a specific domain
-                (DOMAIN, self._featureset_id)
-            },
-            'name': self.name,
-            'manufacturer': "Lightwave RF",
-            'model': self._lwlink.featuresets[self._featureset_id].product_code,
-            'via_device': (DOMAIN, self._linkid)
-        }
+        return get_extra_state_attributes(self)

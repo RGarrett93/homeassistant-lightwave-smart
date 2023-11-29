@@ -11,7 +11,10 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.exceptions import ConfigEntryNotReady
 from datetime import datetime
 import pytz
-from .utils import make_device_info
+from .utils import (
+    make_device_info,
+    get_extra_state_attributes
+)
 
 RECOMMENDED_LUX_LEVEL = 300
 
@@ -94,7 +97,7 @@ SENSORS = [
 ]
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Find and return LightWave sensors."""
+    """Find and return Lightwave sensors."""
 
     sensors = []
     link = hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_LINK2]
@@ -156,7 +159,7 @@ class LWRF2Sensor(SensorEntity):
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
-        await self._lwlink.async_register_callback(self.async_update_callback)
+        await self._lwlink.async_register_feature_callback(self._featureset_id, self.async_update_callback)
 
     @callback
     def async_update_callback(self, **kwargs):
@@ -196,15 +199,7 @@ class LWRF2Sensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return the optional state attributes."""
-
-        attribs = {}
-
-        for featurename, feature in self._lwlink.featuresets[self._featureset_id].features.items():
-            attribs['lwrf_' + featurename] = feature.state
-
-        attribs['lrwf_product_code'] = self._lwlink.featuresets[self._featureset_id].product_code
-
-        return attribs
+        return get_extra_state_attributes(self)
 
 
 class LWRF2EventSensor(SensorEntity):
@@ -229,7 +224,7 @@ class LWRF2EventSensor(SensorEntity):
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
-        await self._lwlink.async_register_callback(self.async_update_callback)
+        await self._lwlink.async_register_feature_callback(self._featureset_id, self.async_update_callback)
 
     @callback
     def async_update_callback(self, **kwargs):
