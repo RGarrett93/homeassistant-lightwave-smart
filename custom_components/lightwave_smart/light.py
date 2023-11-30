@@ -120,8 +120,8 @@ class LWRF2Light(LightEntity):
         self._state = \
             self._lwlink.featuresets[self._featureset_id].features["switch"].state
         
-        self._brightness = int(round(
-            self._lwlink.featuresets[self._featureset_id].features["dimLevel"].state / 100 * 255))
+        dimLevel = self._lwlink.featuresets[self._featureset_id].features["dimLevel"].state
+        self._brightness = int(round(dimLevel / 100 * 255)) if dimLevel is not None else None
         
         self._has_led = self._lwlink.featuresets[self._featureset_id].has_led()
         
@@ -165,8 +165,8 @@ class LWRF2Light(LightEntity):
         """Update state"""
         self._state = \
             self._lwlink.featuresets[self._featureset_id].features["switch"].state
-        self._brightness = int(round(
-            self._lwlink.featuresets[self._featureset_id].features["dimLevel"].state / 100 * 255))
+        dimLevel = self._lwlink.featuresets[self._featureset_id].features["dimLevel"].state
+        self._brightness = int(round(dimLevel / 100 * 255)) if dimLevel is not None else None
 
     @property
     def brightness(self):
