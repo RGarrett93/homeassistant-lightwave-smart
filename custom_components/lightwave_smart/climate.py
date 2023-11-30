@@ -81,8 +81,7 @@ class LWRF2Climate(ClimateEntity):
             
         self._valve_level = 100
         if 'valveLevel' in self._lwlink.featuresets[self._featureset_id].features.keys():
-            self._valve_level = \
-                self._lwlink.featuresets[self._featureset_id].features["valveLevel"].state
+            self._valve_level = self._lwlink.featuresets[self._featureset_id].features["valveLevel"].state
         elif self._thermostat:
             if "callForHeat" in self._lwlink.featuresets[self._featureset_id].features:
                 if self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state is None:
@@ -103,11 +102,9 @@ class LWRF2Climate(ClimateEntity):
             self._temperature = \
                 self._lwlink.featuresets[self._featureset_id].features["temperature"].state / 10
 
-        if self._lwlink.featuresets[self._featureset_id].features["targetTemperature"].state is None:
-            self._target_temperature = None
-        else:
-            self._target_temperature = \
-                self._lwlink.featuresets[self._featureset_id].features["targetTemperature"].state / 10
+        self._target_temperature = self._lwlink.featuresets[self._featureset_id].features["targetTemperature"].state
+        self._target_temperature = self._target_temperature / 10 if self._target_temperature is not None else None
+                
         self._last_tt = self._target_temperature #Used to store the target temperature to revert to after boosting
         self._temperature_scale = TEMP_CELSIUS
 
@@ -117,7 +114,7 @@ class LWRF2Climate(ClimateEntity):
             self._target_humidity = \
                 self._lwlink.featuresets[self._featureset_id].features["targetHumidity"].state
 
-        if self._valve_level == 100 and self._target_temperature < 40:
+        if self._valve_level == 100 and (self._target_temperature is None or self._target_temperature < 40):
             self._preset_mode = "Auto"
         elif self._valve_level == 100:
             self._preset_mode = "100%"
@@ -185,7 +182,7 @@ class LWRF2Climate(ClimateEntity):
     def hvac_action(self):
         if self._onoff == 0:
             return CURRENT_HVAC_OFF
-        elif self._valve_level > 0:
+        elif self._valve_level is not None and self._valve_level > 0:
             return CURRENT_HVAC_HEAT
         else:
             return CURRENT_HVAC_IDLE
@@ -228,12 +225,14 @@ class LWRF2Climate(ClimateEntity):
         """Update state"""
         self._valve_level = 100
         if 'valveLevel' in self._lwlink.featuresets[self._featureset_id].features.keys():
-            self._valve_level = \
-                self._lwlink.featuresets[self._featureset_id].features["valveLevel"].state
+            self._valve_level = self._lwlink.featuresets[self._featureset_id].features["valveLevel"].state
         elif self._thermostat:
             if "callForHeat" in self._lwlink.featuresets[self._featureset_id].features:
-                self._valve_level = \
-                    self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state * 100
+                if self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state is None:
+                    self._valve_level = 0
+                else:    
+                    self._valve_level = \
+                        self._lwlink.featuresets[self._featureset_id].features["callForHeat"].state * 100
 
         if self._thermostat:
             self._onoff = 1
@@ -243,9 +242,11 @@ class LWRF2Climate(ClimateEntity):
                     
         self._temperature = \
             self._lwlink.featuresets[self._featureset_id].features["temperature"].state / 10
-        self._target_temperature = \
-            self._lwlink.featuresets[self._featureset_id].features["targetTemperature"].state / 10
-        if self._valve_level == 100 and self._target_temperature < 40:
+            
+        self._target_temperature = self._lwlink.featuresets[self._featureset_id].features["targetTemperature"].state
+        self._target_temperature = self._target_temperature / 10 if self._target_temperature is not None else None
+        
+        if self._valve_level == 100 and (self._target_temperature is None or self._target_temperature < 40):
             self._preset_mode = "Auto"
             self._last_tt = self._target_temperature
 

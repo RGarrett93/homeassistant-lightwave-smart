@@ -139,7 +139,7 @@ class LWRF2Sensor(SensorEntity):
 
         self._state = self._lwlink.featuresets[self._featureset_id].features[self.entity_description.key].state
         if self._state is None:
-            raise ConfigEntryNotReady(f"Sensor is not responding: {self._featureset_id}")
+            _LOGGER.warning("LWRF2Sensor:__init__ - state is None for: %s - %s", self._featureset_id, self.entity_description.key)
         else:
             if self.entity_description.key == 'duskTime' or self.entity_description.key == 'dawnTime':
                 year = self._lwlink.featuresets[self._featureset_id].features['year'].state
@@ -174,7 +174,7 @@ class LWRF2Sensor(SensorEntity):
         """Update state"""
         self._state = self._lwlink.featuresets[self._featureset_id].features[self.entity_description.key].state
         if self._state is None:
-            _LOGGER.warning("async_update - state is None for: %s - %s", self._featureset_id, self.entity_description.key)
+            _LOGGER.warning("LWRF2Sensor:async_update - state is None for: %s - %s", self._featureset_id, self.entity_description.key)
         else:
             if self.entity_description.key == 'duskTime' or self.entity_description.key == 'dawnTime':
                 year = self._lwlink.featuresets[self._featureset_id].features['year'].state
