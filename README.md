@@ -1,6 +1,6 @@
 # Lightwave Smart
 
-Home Assistant (https://www.home-assistant.io/) component for controlling LightwaveRF (https://lightwaverf.com) devices with use of a Lightwave Link Plus hub. Controls both generation 1 ("Connect Series") and generation 2 ("Smart Series") devices. Does not work with gen1 hub.
+Home Assistant (https://www.home-assistant.io/) component for controlling Lightwave (https://lightwaverf.com) devices with use of a Lightwave Link Plus hub. Controls both generation 1 ("Connect Series") and generation 2 ("Smart Series") devices. Does not work with gen1 hub.
 
 ## Setup
 There are two ways to set up:

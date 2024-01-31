@@ -59,7 +59,27 @@ RECOMMENDED_LUX_LEVEL = 300
 DEPENDENCIES = ['lightwave_smart']
 _LOGGER = logging.getLogger(__name__)
 
-SENSORS = [
+
+SENSORS_PRIMARY_TYPES = ["energy"]
+
+SENSORS_PRIMARY = [
+    SensorEntityDescription(
+        key="power",
+        native_unit_of_measurement=POWER_WATT,
+        device_class=DEVICE_CLASS_POWER,
+        state_class=STATE_CLASS_MEASUREMENT,
+        name="Current Consumption",
+    ),
+    SensorEntityDescription(
+        key="energy",
+        native_unit_of_measurement=ENERGY_WATT_HOUR,
+        device_class=DEVICE_CLASS_ENERGY,
+        state_class=STATE_CLASS_TOTAL_INCREASING,
+        name="Total Consumption",
+    )
+]
+
+SENSORS_SECONDARY = [
     SensorEntityDescription(
         key="power",
         native_unit_of_measurement=POWER_WATT,
@@ -76,6 +96,9 @@ SENSORS = [
         name="Total Consumption",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+]
+
+SENSORS_DIAGNOSTIC = [
     SensorEntityDescription(
         key="rssi",
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
@@ -141,7 +164,19 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     link = hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_LINK2]
 
     for featureset_id, featureset in link.featuresets.items():
-        for description in SENSORS:
+        if featureset.primary_feature_type in SENSORS_PRIMARY_TYPES:
+            for description in SENSORS_PRIMARY:
+                if featureset.has_feature(description.key):
+                    _LOGGER.warning("Primary featureset.primary_feature_type: %s - %s", featureset.primary_feature_type, description.key)
+                    if featureset.primary_feature_type == description.key:
+                        _LOGGER.warning("Primary feature: %s", description.key)
+                    sensors.append(LWRF2Sensor(featureset.name, featureset_id, link, description, hass))
+        else:
+            for description in SENSORS_SECONDARY:
+                if featureset.has_feature(description.key):
+                    sensors.append(LWRF2Sensor(featureset.name, featureset_id, link, description, hass))
+                
+        for description in SENSORS_DIAGNOSTIC:
             if featureset.has_feature(description.key):
                 sensors.append(LWRF2Sensor(featureset.name, featureset_id, link, description, hass))
     
@@ -188,9 +223,6 @@ class LWRF2Sensor(SensorEntity):
                 min = self._state // 60
                 second = self._state - min * 60
                 self._state = dt_util.parse_datetime(f'{year}-{month:02}-{day:02}T{hour:02}:{min:02}:{second:02}Z')
-
-        if self._lwlink.featuresets[self._featureset_id].is_energy() and not self.entity_description.key == 'rssi':
-            self.entity_description.entity_category = None
 
         self._attr_unique_id = f"{self._featureset_id}_{self.entity_description.key}"
         self._attr_device_info = make_device_info(self, name)
