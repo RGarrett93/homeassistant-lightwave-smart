@@ -19,7 +19,6 @@ try:
     DEVICE_CLASS_SIGNAL_STRENGTH = SensorDeviceClass.SIGNAL_STRENGTH
     DEVICE_CLASS_TIMESTAMP = SensorDeviceClass.TIMESTAMP
     DEVICE_CLASS_VOLTAGE = SensorDeviceClass.VOLTAGE
-    LIGHT_LUX = SensorDeviceClass.ILLUMINANCE
 except ImportError:
     from homeassistant.components.sensor import (
         DEVICE_CLASS_BATTERY, 
@@ -29,11 +28,10 @@ except ImportError:
         DEVICE_CLASS_POWER, 
         DEVICE_CLASS_SIGNAL_STRENGTH, 
         DEVICE_CLASS_TIMESTAMP, 
-        DEVICE_CLASS_VOLTAGE,
-        LIGHT_LUX
+        DEVICE_CLASS_VOLTAGE
     )
 # Units
-from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT, LIGHT_LUX
 try:
     from homeassistant.const import UnitOfElectricCurrent, UnitOfElectricPotential, UnitOfEnergy, UnitOfPower
     ELECTRIC_CURRENT_MILLIAMPERE = UnitOfElectricCurrent.MILLIAMPERE
@@ -106,6 +104,7 @@ SENSORS_DIAGNOSTIC = [
         state_class=STATE_CLASS_MEASUREMENT,
         name="Signal Strength",
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False
     ),
     SensorEntityDescription(
         key="batteryLevel",
@@ -122,6 +121,7 @@ SENSORS_DIAGNOSTIC = [
         state_class=STATE_CLASS_MEASUREMENT,
         name="Voltage",
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False
     ),
     SensorEntityDescription(
         key="current",
@@ -167,9 +167,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         if featureset.primary_feature_type in SENSORS_PRIMARY_TYPES:
             for description in SENSORS_PRIMARY:
                 if featureset.has_feature(description.key):
-                    _LOGGER.warning("Primary featureset.primary_feature_type: %s - %s", featureset.primary_feature_type, description.key)
-                    if featureset.primary_feature_type == description.key:
-                        _LOGGER.warning("Primary feature: %s", description.key)
                     sensors.append(LWRF2Sensor(featureset.name, featureset_id, link, description, hass))
         else:
             for description in SENSORS_SECONDARY:
@@ -180,15 +177,17 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             if featureset.has_feature(description.key):
                 sensors.append(LWRF2Sensor(featureset.name, featureset_id, link, description, hass))
     
+
     for featureset_id, hubname in link.get_hubs():
-            try:
-                sensors.append(LWRF2EventSensor(hubname, featureset_id, link, SensorEntityDescription(
-                    key="lastEvent",
-                    device_class=DEVICE_CLASS_TIMESTAMP,
-                    name="Last Event Received",
-                    entity_category=EntityCategory.DIAGNOSTIC,
-                )))
-            except Exception as e: _LOGGER.exception("Could not add LWRF2EventSensor")
+        try:
+            sensors.append(LWRF2EventSensor(hubname, featureset_id, link, SensorEntityDescription(
+                key="lastEvent",
+                device_class=DEVICE_CLASS_TIMESTAMP,
+                name="Last Event Received",
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False
+            ), hass))
+        except Exception as e: _LOGGER.exception("Could not add LWRF2EventSensor")
 
     hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_ENTITIES].extend(sensors)
     async_add_entities(sensors)
@@ -279,7 +278,7 @@ class LWRF2EventSensor(SensorEntity):
     _attr_should_poll = False
     _attr_assumed_state = False
 
-    def __init__(self, name, featureset_id, link, description):
+    def __init__(self, name, featureset_id, link, description, hass):
         _LOGGER.debug("Adding event sensor: %s - %s - %s ", name, description.key, featureset_id)
         self._featureset_id = featureset_id
         self._lwlink = link
@@ -294,7 +293,8 @@ class LWRF2EventSensor(SensorEntity):
 
     async def async_added_to_hass(self):
         """Subscribe to events."""
-        await self._lwlink.async_register_feature_callback(self._featureset_id, self.async_update_callback)
+        # This will be a noisy event, perhaps it should be a switchable option
+        await self._lwlink.async_register_general_callback(self.async_update_callback)
 
     @callback
     def async_update_callback(self, **kwargs):
