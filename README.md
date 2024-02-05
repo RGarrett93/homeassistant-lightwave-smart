@@ -1,12 +1,19 @@
 # Lightwave Smart
 
-Home Assistant (https://www.home-assistant.io/) component for controlling Lightwave (https://lightwaverf.com) devices with use of a Lightwave Link Plus hub. Controls both generation 1 ("Connect Series") and generation 2 ("Smart Series") devices. Does not work with gen1 hub.
+Home Assistant (https://www.home-assistant.io/) component for controlling Lightwave (https://lightwaverf.com) devices with use of a Lightwave Link Plus hub (https://shop.lightwaverf.com/collections/all/products/link-plus). 
+
+Controls both generation 1 ("Connect Series") and generation 2 ("Smart Series") devices. Does not work with gen1 hub.
 
 ## Setup
 There are two ways to set up:
 
 #### 1. Using HACS (preferred)
-This component is available through the Home Assistant Community Store HACS (https://hacs.netlify.com/)
+
+This component is *not yet* available directly through the Home Assistant Community Store HACS (https://hacs.netlify.com/), a pull request is pending merge as of 5 February 2024 to have the integration included with HACS by default.
+
+However using HACS it can be installed via "Custom repositories" using the repository url (https://github.com/LightwaveSmartHome/homeassistant-lightwave-smart), setting Category "Integration" - see:
+
+![image](https://github.com/LightwaveSmartHome/homeassistant-lightwave-smart/assets/5161291/a6488965-29ac-48a3-b867-723885f08a74)
 
 If you use this method, your component will always update to the latest version. But you'll need to set up HACS first.
 
@@ -25,10 +32,10 @@ In Home Assistant:
 3. Click the "+" in the bottom right
 4. Choose "Lightwave Smart"
 5. Enter username and password
-6. This should automatically find all your devices
+6. This should automatically find all your devices (note initially only the hub may show, if you navigate back to the overview all your devices should appear there within a few seconds)
 
 ## Usage
-Once configured this should then automatically add all switches, lights, thermostats, blinds/covers, sensors and energy monitors that are configured in your Lightwave app. If you add a new device you will need to restart Home Assistant, or remove and re-add the integration.
+Once configured this should then automatically add all switches, lights, thermostats, TRVs, blinds/covers, sensors, wirefrees and energy monitors that are configured in your Lightwave app. If you add a new device you will need to restart Home Assistant, or remove and re-add the integration.
 
 Various sensor entities (including power consumption) and controls for the button lock and status LED are exposed within the corresponding entities.
 
@@ -36,7 +43,27 @@ All other attributes reported by the Lightwave devices are exposed with the name
 
 For gen2 devices, the brightness can be set without turning the light on using `lightwave_smart.set_brightness`.
 
-Firmware 5+ devices generate `lightwave_smart.click` events when the buttons are pressed. The "code" returned is the type of click:
+### Firmware 5+ 
+
+### UI Button Events
+
+Switches generate events when pressed independently of any other default or mapped behaviour.
+
+For example pressing the down button twice on a dimmer or wirefree will generate the event "Down.Short.2"
+Whereas pressing a button once on a socket (eg L42) will generate a "Short.1" event as there is no up/down element to these buttons.
+
+Example of how this can be used in an Entity automation:
+
+A gang of an L42 named "Lounge Xmas", will appear as an entity called "Lounge Xmas Smart Switch", which is then used with the condition that the Event type is "Short.2" (the action can be anything)
+
+![image](https://github.com/LightwaveSmartHome/homeassistant-lightwave-smart/assets/5161291/d75cea31-8064-483f-a43d-8ef40bef02ee)
+
+
+### lightwave_smart.click events (legacy)
+
+Legacy - kept for backward compatibility
+
+devices generate `lightwave_smart.click` events when the buttons are pressed. The "code" returned is the type of click:
 
 Code|Hex|Meaning
 ----|----|----
@@ -57,7 +84,7 @@ Code|Hex|Meaning
 
 For sockets the codes are the "up button" versions.
 
-There are further service calls:
+### There are further service calls:
 
 `lightwave_smart.reconnect`: Force a reconnect to the Lightwave servers (only for non-public API, has no effect on public API)
 `lightwave_smart.whdelete`: Delete a webhook registration (use this if you get "Received message for unregistered webhook" log messages)
