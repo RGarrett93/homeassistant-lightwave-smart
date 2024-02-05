@@ -4,6 +4,8 @@ Home Assistant (https://www.home-assistant.io/) component for controlling Lightw
 
 Controls both generation 1 ("Connect Series") and generation 2 ("Smart Series") devices. Does not work with gen1 hub.
 
+*Note: Entities are created differently from the [original version of this integration - Lightwave2](https://github.com/bigbadblunt/homeassistant-lightwave2), in that regard this version is a breaking change* 
+
 ## Setup
 There are two ways to set up:
 

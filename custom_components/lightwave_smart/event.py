@@ -125,9 +125,9 @@ class LWRF2UIButton(EventEntity):
     def _get_event_type(self, decoded_obj):
         event_type = ""
         if "upDown" in decoded_obj:
-            event_type = decoded_obj["upDown"]
+            event_type = decoded_obj["upDown"] + "."
         
-        event_type += "." + decoded_obj['eventType']
+        event_type += decoded_obj['eventType']
         if decoded_obj['eventType'] == "Short":
             event_type += "." + str(decoded_obj['presses'])
         
