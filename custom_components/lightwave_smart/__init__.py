@@ -42,8 +42,13 @@ async def async_setup(hass, config):
         _LOGGER.debug("Received service call reconnect")
         for entry_id in hass.data[DOMAIN]:
             link = hass.data[DOMAIN][entry_id][LIGHTWAVE_LINK2]
-            if link._websocket is not None:
-                await link._websocket.close()
+            try:
+                # Close the existing WebSocket connection if it exists
+                if link._ws and link._ws._websocket is not None:
+                    await link._ws._websocket.close()
+            except Exception as e:
+                _LOGGER.error("Error closing WebSocket: %s", e)
+
 
     async def service_handle_update_states(call):
         _LOGGER.debug("Received service call update states")
