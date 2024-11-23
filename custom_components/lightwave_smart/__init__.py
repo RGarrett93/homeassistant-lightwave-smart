@@ -3,12 +3,14 @@ import voluptuous as vol
 
 from .const import DOMAIN, CONF_PUBLICAPI, LIGHTWAVE_LINK2, LIGHTWAVE_ENTITIES, \
     LIGHTWAVE_WEBHOOK, LIGHTWAVE_WEBHOOKID, LIGHTWAVE_LINKID, SERVICE_RECONNECT, SERVICE_WHDELETE, SERVICE_UPDATE
+from .repairs import async_create_fix_flow  # Import the repairs module
 from homeassistant.config_entries import ConfigEntry    
 from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.issue_registry import async_create_issue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +42,6 @@ def async_central_callback(**kwargs):
     _LOGGER.debug("Central callback")
 
 async def async_setup(hass, config):
-
     async def service_handle_reconnect(call):
         _LOGGER.debug("Received service call reconnect")
         for entry_id in hass.data[DOMAIN]:
@@ -112,7 +113,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_WEBHOOK] = url
 
     device_registry = dr.async_get(hass)
-    entity_registry = er.async_get(hass)
     for featureset_id, hubname in link.get_hubs():
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
@@ -124,6 +124,30 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             model=link.featuresets[featureset_id].product_code
         )
         hass.data[DOMAIN][config_entry.entry_id][LIGHTWAVE_LINKID] = featureset_id
+
+    # Ensure every device associated with this config entry still exists
+    # Notify the user and allow them to repair (remove the missing device).
+    for device_entry in dr.async_entries_for_config_entry(device_registry, config_entry.entry_id):
+        for identifier in device_entry.identifiers:
+            _LOGGER.debug("Identifier found in Home Assistant device registry: %s", identifier[1])
+            if identifier[1] in link.featuresets:
+                _LOGGER.debug("Identifier exists in Lightwave config")
+                break
+        else:
+            _LOGGER.debug("Identifier does not exist in Lightwave config, creating repair notification")
+
+            # Create a repair notification for the missing device
+            async_create_issue(
+                hass,
+                DOMAIN,
+                f"missing_device_{device_entry.id}",
+                is_fixable=True,
+                severity="warning",
+                translation_key="missing_device",
+                translation_placeholders={
+                    "device_name": device_entry.name or "Unknown"
+                }
+            )
 
     # Forward setups for all platforms
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
